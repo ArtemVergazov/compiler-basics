@@ -1,0 +1,6 @@
+out
+*.asm
+*.o
+build
+debug
+.vscode

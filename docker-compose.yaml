@@ -1,0 +1,10 @@
+# version: "3.8"
+services:
+  dev-environment:
+    build: .
+    stdin_open: true
+    # tty: true
+    volumes:
+      - type: bind
+        source: .
+        target: /ubuntu-nasm-compiler
