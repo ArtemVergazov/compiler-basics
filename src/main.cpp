@@ -2,9 +2,11 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <optional>
 #include <vector>
 #include <cstdlib>
+#include <utility>
+
+#include "tokenization.h"
 
 //===========================================================================
 // Hard-coded
@@ -15,63 +17,13 @@ constexpr char OUTNAME[] = "out";
 //===========================================================================
 // Compiler
 
-enum class TokenType {
-    Return,
-    IntLiteral,
-    Semi
-};
-
-struct Token {
-    TokenType type;
-    std::optional<std::string> value;
-};
-
-std::vector<Token> tokenize(const std::string &str) {
-    std::vector<Token> tokens;
-    std::string buf;
-
-    for (int i = 0; i < str.length(); ++i) {
-        if (std::isalpha(str[i])) {
-            buf.push_back(str[i++]);
-            while (i < str.length() && std::isalnum(str[i])) {
-                buf.push_back(str[i++]);
-            }
-            --i;
-            if (buf == "return") {
-                tokens.push_back({.type = TokenType::Return});
-                buf.clear();
-            } else {
-                std::cerr << "Syntax error!\n";
-                exit(1);
-            }
-        } else if (std::isdigit(str[i])) {
-            buf.push_back(str[i++]);
-            while (i < str.length() && std::isdigit(str[i])) {
-                buf.push_back(str[i++]);
-            }
-            --i;
-            tokens.push_back({.type = TokenType::IntLiteral, .value = buf});
-            buf.clear();
-        } else if (str[i] == ';') {
-            tokens.push_back({.type = TokenType::Semi});
-        } else if (std::isspace(str[i])) {
-            continue;
-        } else {
-            std::cerr << "Syntax error!\n";
-            exit(1);
-        }
-    }
-
-    return tokens;
-}
-
 std::string tokens_to_asm(const std::vector<Token> &tokens) {
     std::stringstream output;
     output << "global _start\n";
     output << "_start:\n";
 
     for (int i = 0; i < tokens.size(); ++i) {
-        if (tokens[i].type == TokenType::Return) {
+        if (tokens[i].type == TokenType::Exit) {
             if (i + 1 < tokens.size() && tokens[i + 1].type == TokenType::IntLiteral) {
                 if (i + 2 < tokens.size() && tokens[i + 2].type == TokenType::Semi) {
                     output << "    mov rax, 60\n";
@@ -118,7 +70,10 @@ int main(int argc, char **argv) {
     }
 
     std::string contents = read_file(argv[1]);
-    auto tokens = tokenize(contents);
+
+    Tokenizer tokenizer(std::move(contents));
+    auto tokens = tokenizer.tokenize();
+
     std::string asm_code = tokens_to_asm(tokens);
     write_file(ASM_PATH, asm_code);
     assemble(ASM_PATH);
