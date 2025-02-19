@@ -2,7 +2,7 @@
 
 This repository contains a custom compiler project aimed at exploring the basics of compiler design. It is meant as an organized space that would help me structure my work. The development environment is set up using **Docker Compose**, the project is written in C++20 and built using **CMake**.
 
-This project is by no means a serious attempt at creating a powerful optimized compiler. It is more of a joke-like motive to get myself to practice Docker, CMake, C++ new standards, assembler and basics of compiler design. The language it is targeted at isn't even Turing complete.
+This project is by no means a serious attempt at creating a powerful optimized compiler, and the made-up language it is targeted at isn't Turing complete. It is more of a joke-like motive to get myself to practice Docker, CMake, C++ new standards, assembler and basics of compiler design.
 
 Steps of compiler development follow https://www.youtube.com/watch?v=vcSijrRsrY0&list=PLUDlas_Zy_qC7c5tCgTMYq2idyyT241qs
 

@@ -2,41 +2,21 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <vector>
-#include <cstdlib>
 #include <utility>
+#include <vector>
 
-#include "tokenization.h"
+#include "generator.h"
+#include "parser.h"
+#include "tokenizer.h"
 
 //===========================================================================
-// Hard-coded
+// Hardcoded
 constexpr char ASM_PATH[] = "out.asm";
 constexpr char OBJ_PATH[] = "out.o";
 constexpr char OUTNAME[] = "out";
 
 //===========================================================================
 // Compiler
-
-std::string tokens_to_asm(const std::vector<Token> &tokens) {
-    std::stringstream output;
-    output << "global _start\n";
-    output << "_start:\n";
-
-    for (int i = 0; i < tokens.size(); ++i) {
-        if (tokens[i].type == TokenType::Exit) {
-            if (i + 1 < tokens.size() && tokens[i + 1].type == TokenType::IntLiteral) {
-                if (i + 2 < tokens.size() && tokens[i + 2].type == TokenType::Semi) {
-                    output << "    mov rax, 60\n";
-                    output << "    mov rdi, " << tokens[i + 1].value.value() << "\n";
-                    output << "    syscall\n";
-                }
-            }
-        }
-    }
-
-    return output.str();
-}
-
 void assemble(const char *filename) {
     std::string command = "nasm -felf64 " + std::string(filename);
     std::system(command.c_str());
@@ -49,7 +29,6 @@ void link(const char *filename, const char *outname) {
 
 //===========================================================================
 // Work with files
-
 std::string read_file(const char *filename) {
     std::ifstream input(filename);
     std::stringstream contents_stream;
@@ -74,7 +53,17 @@ int main(int argc, char **argv) {
     Tokenizer tokenizer(std::move(contents));
     auto tokens = tokenizer.tokenize();
 
-    std::string asm_code = tokens_to_asm(tokens);
+    Parser parser(std::move(tokens));
+    auto tree = parser.parse();
+
+    if (!tree.has_value()) {
+        std::cerr << "No exit statement found\n";
+        exit(1);
+    }
+
+    Generator generator(std::move(tree.value()));
+    std::string asm_code = generator.generate();
+
     write_file(ASM_PATH, asm_code);
     assemble(ASM_PATH);
     link(OBJ_PATH, OUTNAME);

@@ -1,8 +1,11 @@
 #pragma once
-#include <string>
-#include <optional>
-#include <vector>
+
+#include <cstddef>
 #include <iostream>
+#include <optional>
+#include <string>
+#include <vector>
+#include "text_reader.h"
 
 enum class TokenType { Exit, IntLiteral, Semi };
 
@@ -11,11 +14,11 @@ struct Token {
     std::optional<std::string> value;
 };
 
-class Tokenizer {
+class Tokenizer : public TextReader<std::string> {
 public:
-    inline explicit Tokenizer(std::string &&src) : m_src(src) {}
+    Tokenizer(std::string &&src) : TextReader(std::move(src)) {}
 
-    inline std::vector<Token> tokenize() {
+    std::vector<Token> tokenize() {
         std::vector<Token> tokens;
         std::string buf;
 
@@ -50,22 +53,8 @@ public:
                 exit(1);
             }
         }
+        mIndex = 0;
 
-        m_index = 0;
         return tokens;
     }
-
-private:
-    [[nodiscard]] std::optional<char> peek(int ahead = 1) const {
-        if (m_index + ahead > m_src.length()) {
-            return {};
-        }
-
-        return m_src[m_index];
-    }
-
-    char consume() { return m_src[m_index++]; }
-
-    const std::string m_src;
-    int m_index = 0;
 };
