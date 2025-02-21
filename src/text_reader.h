@@ -10,12 +10,12 @@ public:
     explicit TextReader(TextStream &&textStream) : mTextStream(std::move(textStream)) {}
 
 protected:
-    [[nodiscard]] std::optional<typename TextStream::value_type> peek(int ahead = 1) const {
-        if (mIndex + ahead > mTextStream.size()) {
+    [[nodiscard]] std::optional<typename TextStream::value_type> peek(int offset = 0) const {
+        if (mIndex + offset >= mTextStream.size()) {
             return {};
         }
 
-        return mTextStream[mIndex];
+        return mTextStream[mIndex + offset];
     }
 
     TextStream::value_type consume() { return mTextStream[mIndex++]; }

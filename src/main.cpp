@@ -54,15 +54,15 @@ int main(int argc, char **argv) {
     auto tokens = tokenizer.tokenize();
 
     Parser parser(std::move(tokens));
-    auto tree = parser.parse();
+    auto prog = parser.parseProg();
 
-    if (!tree.has_value()) {
-        std::cerr << "No exit statement found\n";
-        exit(1);
-    }
+    // if (!prog.has_value()) {
+    //     std::cerr << "No exit statement found\n";
+    //     exit(1);
+    // }
 
-    Generator generator(std::move(tree.value()));
-    std::string asm_code = generator.generate();
+    Generator generator(std::move(prog));
+    std::string asm_code = generator.genProg();
 
     write_file(ASM_PATH, asm_code);
     assemble(ASM_PATH);
