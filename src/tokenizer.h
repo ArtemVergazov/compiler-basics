@@ -1,13 +1,13 @@
 #pragma once
 
-#include <cstddef>
+#include <cstdlib> // size_t
 #include <iostream>
 #include <optional>
 #include <string>
 #include <vector>
 #include "text_reader.h"
 
-enum class TokenType { EXIT, INT_LITERAL, SEMI, OPEN_PAREN, CLOSE_PAREN, IDENTIFIER, LET, EQ };
+enum class TokenType { EXIT, INT_LITERAL, SEMI, OPEN_PAREN, CLOSE_PAREN, IDENTIFIER, LET, EQ, PLUS };
 
 struct Token {
     TokenType type;
@@ -57,6 +57,9 @@ public:
             } else if (peek().value() == '=') {
                 consume();
                 tokens.push_back({ .type = TokenType::EQ });
+            } else if (peek().value() == '+') {
+                consume();
+                tokens.push_back({ .type = TokenType::PLUS });
             } else if (std::isspace(peek().value())) {
                 consume();
             } else {

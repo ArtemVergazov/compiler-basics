@@ -1,13 +1,13 @@
 #pragma once
 
-#include <cstddef>
+#include <cstdlib> // size_t
 #include <optional>
-#include <utility>
+#include <utility> // std::move
 
 template <typename TextStream>
 class TextReader {
 public:
-    explicit TextReader(TextStream &&textStream) : mTextStream(std::move(textStream)) {}
+    explicit TextReader(TextStream &&textStream) : mTextStream(std::move(textStream)), mIndex(0) {}
 
 protected:
     [[nodiscard]] std::optional<typename TextStream::value_type> peek(int offset = 0) const {
@@ -20,6 +20,6 @@ protected:
 
     TextStream::value_type consume() { return mTextStream[mIndex++]; }
 
-    const TextStream mTextStream{};
-    std::size_t mIndex = 0;
+    const TextStream mTextStream;
+    size_t mIndex;
 };

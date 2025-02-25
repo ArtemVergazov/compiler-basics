@@ -2,7 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <utility>
+#include <utility> // std::move
 #include <vector>
 
 #include "generator.h"
