@@ -7,7 +7,25 @@
 #include <vector>
 #include "text_reader.h"
 
-enum class TokenType { EXIT, INT_LITERAL, SEMI, OPEN_PAREN, CLOSE_PAREN, IDENTIFIER, LET, EQ, PLUS };
+enum class TokenType {
+    EXIT, INT_LITERAL, SEMI, OPEN_PAREN, CLOSE_PAREN,
+    IDENTIFIER, LET, EQ, ADD, SUB, MUL, DIV,
+};
+
+inline std::optional<int> binPrec(TokenType type) {
+    switch (type) {
+        case TokenType::ADD:
+            return 0;
+        case TokenType::SUB:
+        return 0;
+        case TokenType::MUL:
+            return 1;
+        case TokenType::DIV:
+        return 1;
+        default:
+            return {};
+        }
+}
 
 struct Token {
     TokenType type;
@@ -22,10 +40,10 @@ public:
         std::vector<Token> tokens;
         std::string buf;
 
-        while (peek().has_value()) {
-            if (std::isalpha(peek().value())) {
+        while (peek()) {
+            if (std::isalpha(*peek())) {
                 buf.push_back(consume());
-                while (peek().has_value() && std::isalnum(peek().value())) {
+                while (peek() && std::isalnum(*peek())) {
                     buf.push_back(consume());
                 }
                 if (buf == "exit") {
@@ -38,29 +56,38 @@ public:
                     tokens.push_back({ .type = TokenType::IDENTIFIER, .value = buf });
                     buf.clear();
                 }
-            } else if (std::isdigit(peek().value())) {
+            } else if (std::isdigit(*peek())) {
                 buf.push_back(consume());
-                while (peek().has_value() && std::isdigit(peek().value())) {
+                while (peek() && std::isdigit(*peek())) {
                     buf.push_back(consume());
                 }
                 tokens.push_back({ .type = TokenType::INT_LITERAL, .value = buf });
                 buf.clear();
-            } else if (peek().value() == '(') {
+            } else if (*peek() == '(') {
                 consume();
                 tokens.push_back({ .type = TokenType::OPEN_PAREN });
-            } else if (peek().value() == ')') {
+            } else if (*peek() == ')') {
                 consume();
                 tokens.push_back({ .type = TokenType::CLOSE_PAREN });
-            } else if (peek().value() == ';') {
+            } else if (*peek() == ';') {
                 consume();
                 tokens.push_back({ .type = TokenType::SEMI });
-            } else if (peek().value() == '=') {
+            } else if (*peek() == '=') {
                 consume();
                 tokens.push_back({ .type = TokenType::EQ });
-            } else if (peek().value() == '+') {
+            } else if (*peek() == '+') {
                 consume();
-                tokens.push_back({ .type = TokenType::PLUS });
-            } else if (std::isspace(peek().value())) {
+                tokens.push_back({ .type = TokenType::ADD });
+            } else if (*peek() == '-') {
+                consume();
+                tokens.push_back({ .type = TokenType::SUB });
+            } else if (*peek() == '*') {
+                consume();
+                tokens.push_back({ .type = TokenType::MUL });
+            } else if (*peek() == '/') {
+                consume();
+                tokens.push_back({ .type = TokenType::DIV });
+            } else if (std::isspace(*peek())) {
                 consume();
             } else {
                 std::cerr << "Syntax error!\n";

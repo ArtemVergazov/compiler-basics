@@ -51,12 +51,12 @@ int main(int argc, char **argv) {
     std::string contents = read_file(argv[1]);
 
     Tokenizer tokenizer(std::move(contents));
-    auto tokens = tokenizer.tokenize();
+    std::vector<Token> tokens = tokenizer.tokenize();
 
     Parser parser(std::move(tokens));
-    auto prog = parser.parseProg();
+    NodeProg prog = parser.parseProg();
 
-    // if (!prog.has_value()) {
+    // if (!prog) {
     //     std::cerr << "No exit statement found\n";
     //     exit(1);
     // }

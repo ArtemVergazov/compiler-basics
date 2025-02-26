@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <utility> // std::move
 #include <variant> // std::visit
+
+#include "not_implemented_error.h"
 #include "parser.h"
 
 constexpr int EIGHT_BIT = 8;
@@ -28,11 +30,57 @@ public:
                 }
                 const Generator::Var &var = mVars[identifierTerm->identifier.value.value()];
                 std::stringstream offset;
-                offset << "QWORD [rsp + " << EIGHT_BIT*(mStackLoc-var.stackLoc-1) << "]\n";
+                offset << "QWORD [rsp + " << EIGHT_BIT*(mStackLoc-var.stackLoc-1) << "]";
                 push(offset.str());
             },
 
+            [this](const NodeTermParen *parenTerm) {
+                genExpr(parenTerm->expr);
+            }
+
         }, term->term);
+    }
+
+    void genBinExpr(const NodeBinExpr *binExpr) {
+        std::visit(Visitor{
+
+            [this](const NodeBinExprAdd *binExprAdd){
+                genExpr(binExprAdd->lhs);
+                genExpr(binExprAdd->rhs);
+                pop("rbx");
+                pop("rax");
+                add("rax", "rbx");
+                push("rax");
+            },
+
+            [this](const NodeBinExprSub *binExprSub){
+                genExpr(binExprSub->lhs);
+                genExpr(binExprSub->rhs);
+                pop("rbx");
+                pop("rax");
+                sub("rax", "rbx");
+                push("rax");
+            },
+
+            [this](const NodeBinExprMul *binExprMul){
+                genExpr(binExprMul->lhs);
+                genExpr(binExprMul->rhs);
+                pop("rbx");
+                pop("rax");
+                mul("rbx");
+                push("rax");
+            },
+
+            [this](const NodeBinExprDiv *binExprDiv){
+                genExpr(binExprDiv->lhs);
+                genExpr(binExprDiv->rhs);
+                pop("rbx");
+                pop("rax");
+                div("rbx");
+                push("rax");
+            },
+
+        }, binExpr->expr);
     }
 
     void genExpr(const NodeExpr *expr) {
@@ -43,12 +91,7 @@ public:
             },
 
             [this](const NodeBinExpr *binExpr) {
-                genExpr(binExpr->expr->lhs);
-                genExpr(binExpr->expr->rhs);
-                pop("rax");
-                pop("rbx");
-                add("rax", "rbx");
-                push("rax");
+                genBinExpr(binExpr);
             },
 
         }, expr->expr);
@@ -121,6 +164,18 @@ private:
 
     void add(const std::string &reg1, const std::string &reg2) {
         mOutput << "    add " << reg1 << ", " << reg2 << "\n";
+    }
+
+    void sub(const std::string &reg1, const std::string &reg2) {
+        mOutput << "    sub " << reg1 << ", " << reg2 << "\n";
+    }
+
+    void mul(const std::string &reg) {
+        mOutput << "    mul " << reg << "\n";
+    }
+
+    void div(const std::string &reg) {
+        mOutput << "    div " << reg << "\n";
     }
 
     void syscall() {

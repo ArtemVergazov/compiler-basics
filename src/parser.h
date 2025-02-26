@@ -13,6 +13,8 @@
 
 constexpr int FOUR_MEGABYTES = 4 * 1024 * 1024;
 
+struct NodeExpr;
+
 struct NodeTermIntLiteral {
     Token intLiteral;
 };
@@ -21,25 +23,41 @@ struct NodeTermIdentifier {
     Token identifier;
 };
 
-struct NodeTerm {
-    std::variant<NodeTermIntLiteral *, NodeTermIdentifier *> term;
+struct NodeTermParen {
+    NodeExpr *expr;
 };
 
-struct NodeExpr;
+struct NodeTerm {
+    std::variant<NodeTermIntLiteral *, NodeTermIdentifier *, NodeTermParen *> term;
+};
 
 struct NodeBinExprAdd {
     NodeExpr *lhs;
     NodeExpr *rhs;
 };
 
-// struct NodeBinExprMul {
-//     NodeExpr *lhs;
-//     NodeExpr *rhs;
-// };
+struct NodeBinExprSub {
+    NodeExpr *lhs;
+    NodeExpr *rhs;
+};
+
+struct NodeBinExprMul {
+    NodeExpr *lhs;
+    NodeExpr *rhs;
+};
+
+struct NodeBinExprDiv {
+    NodeExpr *lhs;
+    NodeExpr *rhs;
+};
 
 struct NodeBinExpr {
-    // std::variant<NodeBinExprAdd *, NodeBinExprMul *> expr;
-    NodeBinExprAdd *expr;
+    std::variant<
+        NodeBinExprAdd *,
+        NodeBinExprSub *,
+        NodeBinExprMul *,
+        NodeBinExprDiv *
+    > expr;
 };
 
 struct NodeExpr {
@@ -69,21 +87,38 @@ public:
         TextReader(std::move(tokens)), mAllocator(FOUR_MEGABYTES) {}
 
     NodeTerm *parseTerm() {
-        if (auto intLiteral = tryConsume(TokenType::INT_LITERAL)) {
+        if (std::optional<Token> intLiteral = tryConsume(TokenType::INT_LITERAL)) {
 
             NodeTermIntLiteral *intLiteralTerm = mAllocator.alloc<NodeTermIntLiteral>();
-            intLiteralTerm->intLiteral = intLiteral.value();
+            intLiteralTerm->intLiteral = *intLiteral;
             NodeTerm *term = mAllocator.alloc<NodeTerm>();
             term->term = intLiteralTerm;
 
             return term;
 
-        } else if (auto indentifier = tryConsume(TokenType::IDENTIFIER)) {
+        } else if (std::optional<Token> indentifier = tryConsume(TokenType::IDENTIFIER)) {
 
             NodeTermIdentifier *identifierTerm = mAllocator.alloc<NodeTermIdentifier>();
-            identifierTerm->identifier = indentifier.value();
+            identifierTerm->identifier = *indentifier;
             NodeTerm *term = mAllocator.alloc<NodeTerm>();
             term->term = identifierTerm;
+
+            return term;
+
+        } else if (tryConsume(TokenType::OPEN_PAREN)) {
+
+            NodeTermParen *parenTerm = mAllocator.alloc<NodeTermParen>();
+            NodeExpr *expr = parseExpr();
+            if (!expr) {
+                std::cerr << "Expected expression\n";
+                exit(1);
+            }
+            parenTerm->expr = expr;
+
+            tryConsume(TokenType::CLOSE_PAREN, "Unmatched '('");
+
+            NodeTerm *term = mAllocator.alloc<NodeTerm>();
+            term->term = parenTerm;
 
             return term;
         }
@@ -91,37 +126,60 @@ public:
         return nullptr;
     }
 
-    NodeExpr *parseExpr() {
+    NodeExpr *parseExpr(int minPrec = 0) {
         NodeTerm *term = parseTerm();
         if (!term) {
             return nullptr;
         }
 
-        if (tryConsume(TokenType::PLUS)) {
+        NodeExpr *lhsExpr = mAllocator.alloc<NodeExpr>();
+        lhsExpr->expr = term;
+
+        while (true) {
+            std::optional<int> prec;
+            if (
+                std::optional<Token> curToken = peek();
+                !curToken ||
+                !(prec = binPrec(curToken->type)) ||
+                prec < minPrec
+            ) {
+                break;
+            }
+
             NodeBinExpr *binExpr = mAllocator.alloc<NodeBinExpr>();
-            NodeBinExprAdd *addExpr = mAllocator.alloc<NodeBinExprAdd>();
-            NodeExpr *lhs = mAllocator.alloc<NodeExpr>();
-            lhs->expr = term;
-            addExpr->lhs = lhs;
+            Token op = consume();
 
-            if (NodeExpr *rhs = parseExpr()) {
-                addExpr->rhs = rhs;
+            NodeExpr *rhsExpr = parseExpr(*prec + 1);
+
+            if (op.type == TokenType::ADD) {
+                NodeBinExprAdd *addExpr = mAllocator.alloc<NodeBinExprAdd>();
+                addExpr->lhs = lhsExpr;
+                addExpr->rhs = rhsExpr;
                 binExpr->expr = addExpr;
-                NodeExpr *expr = mAllocator.alloc<NodeExpr>();
-                expr->expr = binExpr;
-
-                return expr;
-
+            } else if (op.type == TokenType::MUL) {
+                NodeBinExprMul *mulExpr = mAllocator.alloc<NodeBinExprMul>();
+                mulExpr->lhs = lhsExpr;
+                mulExpr->rhs = rhsExpr;
+                binExpr->expr = mulExpr;
+            } else if (op.type == TokenType::SUB) {
+                NodeBinExprSub *subExpr = mAllocator.alloc<NodeBinExprSub>();
+                subExpr->lhs = lhsExpr;
+                subExpr->rhs = rhsExpr;
+                binExpr->expr = subExpr;
+            } else if (op.type == TokenType::DIV) {
+                NodeBinExprDiv *divExpr = mAllocator.alloc<NodeBinExprDiv>();
+                divExpr->lhs = lhsExpr;
+                divExpr->rhs = rhsExpr;
+                binExpr->expr = divExpr;
             } else {
-                std::cerr << "Expected expression\n";
+                std::cerr << "Expected a binary operator\n";
                 exit(1);
             }
+            lhsExpr = mAllocator.alloc<NodeExpr>();
+            lhsExpr->expr = binExpr;
         }
 
-        NodeExpr *expr = mAllocator.alloc<NodeExpr>();
-        expr->expr = term;
-
-        return expr;
+        return lhsExpr;
     }
 
     NodeStmt *parseStmt() {
@@ -152,7 +210,7 @@ public:
             tryConsume(TokenType::EQ)
         ) {
             NodeStmtLet *letStmt = mAllocator.alloc<NodeStmtLet>();
-            letStmt->identifier = identifier.value();
+            letStmt->identifier = *identifier;
 
             NodeExpr *expr = parseExpr();
             if (!expr) {
@@ -175,7 +233,7 @@ public:
     NodeProg parseProg() {
         NodeProg prog;
 
-        while (peek().has_value()) {
+        while (peek()) {
             NodeStmt *stmt = parseStmt();
             if (!stmt) {
                 std::cerr << "Invalid statement\n";
@@ -190,7 +248,7 @@ public:
 
 private:
     std::optional<Token> tryConsume(TokenType type) {
-        if (peek().has_value() && peek().value().type == type) {
+        if (peek() && peek()->type == type) {
             return consume();
         }
 
@@ -198,7 +256,7 @@ private:
     }
 
     Token tryConsume(TokenType type, const std::string &errMsg) {
-        if (peek().has_value() && peek().value().type == type) {
+        if (peek() && peek()->type == type) {
             return consume();
         }
         std::cerr << errMsg << std::endl;
