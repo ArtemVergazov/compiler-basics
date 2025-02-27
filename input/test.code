@@ -1,2 +1,7 @@
-let x = 2*(7-4) + (10) - (2-1);
-exit(x);
+let x = 1 - 4;
+if (x) {
+    let y = 1;
+    exit(x);
+}
+let y = 2;
+exit(y);

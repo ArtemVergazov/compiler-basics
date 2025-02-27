@@ -2,6 +2,8 @@
 
 #include <cstdlib> // size_t
 #include <sstream>
+#include <stack>
+#include <string>
 #include <unordered_map>
 #include <utility> // std::move
 #include <variant> // std::visit
@@ -9,7 +11,7 @@
 #include "not_implemented_error.h"
 #include "parser.h"
 
-constexpr int EIGHT_BIT = 8;
+constexpr int EIGHT_BYTES = 8;
 
 class Generator {
 public:
@@ -19,7 +21,7 @@ public:
         std::visit(Visitor{
 
             [this](const NodeTermIntLiteral *intLiteralTerm) {
-                mov("rax", intLiteralTerm->intLiteral.value.value());
+                instruction("mov", "rax", intLiteralTerm->intLiteral.value.value());
                 push("rax");
             },
 
@@ -28,9 +30,9 @@ public:
                     std::cerr << "Undeclared variable: " << identifierTerm->identifier.value.value() << std::endl;
                     exit(1);
                 }
-                const Generator::Var &var = mVars[identifierTerm->identifier.value.value()];
+                const Var &var = mVars[identifierTerm->identifier.value.value()];
                 std::stringstream offset;
-                offset << "QWORD [rsp + " << EIGHT_BIT*(mStackLoc-var.stackLoc-1) << "]";
+                offset << "QWORD [rsp + " << EIGHT_BYTES*(mStackLoc-var.stackLoc-1) << "]";
                 push(offset.str());
             },
 
@@ -49,7 +51,7 @@ public:
                 genExpr(binExprAdd->rhs);
                 pop("rbx");
                 pop("rax");
-                add("rax", "rbx");
+                instruction("add", "rax", "rbx");
                 push("rax");
             },
 
@@ -58,7 +60,7 @@ public:
                 genExpr(binExprSub->rhs);
                 pop("rbx");
                 pop("rax");
-                sub("rax", "rbx");
+                instruction("sub", "rax", "rbx");
                 push("rax");
             },
 
@@ -67,7 +69,7 @@ public:
                 genExpr(binExprMul->rhs);
                 pop("rbx");
                 pop("rax");
-                mul("rbx");
+                instruction("mul", "rbx");
                 push("rax");
             },
 
@@ -76,7 +78,7 @@ public:
                 genExpr(binExprDiv->rhs);
                 pop("rbx");
                 pop("rax");
-                div("rbx");
+                instruction("div", "rbx");
                 push("rax");
             },
 
@@ -97,12 +99,20 @@ public:
         }, expr->expr);
     }
 
+    void genScope(const NodeScope *scope) {
+        beginScope();
+        for (const NodeStmt *stmt : scope->stmts) {
+            genStmt(stmt);
+        }
+        endScope();
+    }
+
     void genStmt(const NodeStmt *stmt) {
         std::visit(Visitor{
 
             [this](const NodeStmtExit *exitStmt) {
                 genExpr(exitStmt->expr);
-                mov("rax", 60);
+                instruction("mov", "rax", 60);
                 pop("rdi");
                 syscall();
             },
@@ -113,7 +123,22 @@ public:
                     exit(1);
                 }
                 mVars[letStmt->identifier.value.value()] = { .stackLoc = mStackLoc };
+                mVarOrder.push(letStmt->identifier.value.value());
                 genExpr(letStmt->expr);
+            },
+
+            [this](const NodeStmtIf *ifStmt) {
+                genExpr(ifStmt->expr);
+                pop("rax");
+                instruction("test", "rax", "rax");
+                std::string label = createLabel();
+                instruction("jz", label);
+                genScope(ifStmt->scope);
+                mOutput << label << ":\n";
+            },
+
+            [this](const NodeScope *scope) {
+                genScope(scope);
             },
 
         }, stmt->stmt);
@@ -128,8 +153,8 @@ public:
         }
 
         // Exit with zero if no `exit` statement
-        mov("rax", 60);
-        mov("rdi", 0);
+        instruction("mov", "rax", 60);
+        instruction("mov", "rdi", 0);
         syscall();
 
         return mOutput.str();
@@ -147,43 +172,61 @@ private:
         // TODO Type type;
     };
 
-    template <typename ValueT>
-    void mov(const std::string &reg, const ValueT &val) {
-        mOutput << "    mov " << reg << ", " << val << "\n";
+    std::string createLabel() {
+        return "label" + std::to_string(mLabelCount++);
+    }
+
+    void beginScope() {
+        mScopes.push(mVars.size());
+    }
+
+    void endScope() {
+        size_t popCount = mVars.size() - mScopes.top();
+        instruction("add", "rsp", EIGHT_BYTES * popCount);
+        mStackLoc -= popCount;
+
+        for (int i = 0; i < popCount; ++i) {
+            std::string name = mVarOrder.top();
+            mVars.erase(name);
+            mVarOrder.pop();
+        }
+
+        mScopes.pop();
     }
 
     void push(const std::string &reg) {
-        mOutput << "    push " << reg << "\n";
+        instruction("push", reg);
         ++mStackLoc;
     }
 
     void pop(const std::string &reg) {
-        mOutput << "    pop " << reg << "\n";
+        instruction("pop", reg);
         --mStackLoc;
     }
 
-    void add(const std::string &reg1, const std::string &reg2) {
-        mOutput << "    add " << reg1 << ", " << reg2 << "\n";
-    }
-
-    void sub(const std::string &reg1, const std::string &reg2) {
-        mOutput << "    sub " << reg1 << ", " << reg2 << "\n";
-    }
-
-    void mul(const std::string &reg) {
-        mOutput << "    mul " << reg << "\n";
-    }
-
-    void div(const std::string &reg) {
-        mOutput << "    div " << reg << "\n";
-    }
-
     void syscall() {
-        mOutput << "    syscall\n";
+        instruction("syscall");
+    }
+
+    void instruction(const std::string &instruction) {
+        mOutput << "    " << instruction << "\n";
+    }
+
+    template <typename T>
+    void instruction(const std::string &instruction, const T &arg) {
+        mOutput << "    " << instruction << " " << arg << "\n";
+    }
+
+    template <typename T1, typename T2>
+    void instruction(const std::string &instruction, const T1 &arg1, const T2 &arg2) {
+        mOutput << "    " << instruction << " " << arg1 << ", " << arg2 << "\n";
     }
 
     const NodeProg mProg;
     std::stringstream mOutput{};
-    size_t mStackLoc = 0;
-    std::unordered_map<std::string, Var> mVars;
+    size_t mStackLoc{};
+    size_t mLabelCount{};
+    std::unordered_map<std::string, Var> mVars{};
+    std::stack<std::string, std::vector<std::string>> mVarOrder{};
+    std::stack<size_t, std::vector<size_t>> mScopes{};
 };

@@ -14,6 +14,7 @@
 constexpr int FOUR_MEGABYTES = 4 * 1024 * 1024;
 
 struct NodeExpr;
+struct NodeStmt;
 
 struct NodeTermIntLiteral {
     Token intLiteral;
@@ -64,6 +65,10 @@ struct NodeExpr {
     std::variant<NodeTerm *, NodeBinExpr *> expr;
 };
 
+struct NodeScope {
+    std::vector<NodeStmt *>stmts;
+};
+
 struct NodeStmtExit {
     NodeExpr *expr;
 };
@@ -73,8 +78,18 @@ struct NodeStmtLet {
     NodeExpr *expr;
 };
 
+struct NodeStmtIf {
+    NodeExpr *expr;
+    NodeScope *scope;
+};
+
 struct NodeStmt {
-    std::variant<NodeStmtExit *, NodeStmtLet *> stmt;
+    std::variant<
+        NodeStmtExit *,
+        NodeStmtLet *,
+        NodeStmtIf *,
+        NodeScope *
+    > stmt;
 };
 
 struct NodeProg {
@@ -84,7 +99,7 @@ struct NodeProg {
 class Parser : public TextReader<std::vector<Token>> {
 public:
     explicit Parser(std::vector<Token> &&tokens) :
-        TextReader(std::move(tokens)), mAllocator(FOUR_MEGABYTES) {}
+        TextReader(std::move(tokens)) {}
 
     NodeTerm *parseTerm() {
         if (std::optional<Token> intLiteral = tryConsume(TokenType::INT_LITERAL)) {
@@ -151,22 +166,22 @@ public:
 
             NodeExpr *rhsExpr = parseExpr(*prec + 1);
 
-            if (op.type == TokenType::ADD) {
+            if (op.type == TokenType::PLUS) {
                 NodeBinExprAdd *addExpr = mAllocator.alloc<NodeBinExprAdd>();
                 addExpr->lhs = lhsExpr;
                 addExpr->rhs = rhsExpr;
                 binExpr->expr = addExpr;
-            } else if (op.type == TokenType::MUL) {
+            } else if (op.type == TokenType::STAR) {
                 NodeBinExprMul *mulExpr = mAllocator.alloc<NodeBinExprMul>();
                 mulExpr->lhs = lhsExpr;
                 mulExpr->rhs = rhsExpr;
                 binExpr->expr = mulExpr;
-            } else if (op.type == TokenType::SUB) {
+            } else if (op.type == TokenType::MINUS) {
                 NodeBinExprSub *subExpr = mAllocator.alloc<NodeBinExprSub>();
                 subExpr->lhs = lhsExpr;
                 subExpr->rhs = rhsExpr;
                 binExpr->expr = subExpr;
-            } else if (op.type == TokenType::DIV) {
+            } else if (op.type == TokenType::FSLASH) {
                 NodeBinExprDiv *divExpr = mAllocator.alloc<NodeBinExprDiv>();
                 divExpr->lhs = lhsExpr;
                 divExpr->rhs = rhsExpr;
@@ -180,6 +195,24 @@ public:
         }
 
         return lhsExpr;
+    }
+
+    NodeScope *parseScope() {
+        if (!tryConsume(TokenType::OPEN_CURLY)) {
+            return nullptr;
+        }
+
+        NodeScope *scope = mAllocator.alloc<NodeScope>();
+        for (NodeStmt *innerStmt = parseStmt(); ; innerStmt = parseStmt()) {
+            if (innerStmt) {
+                scope->stmts.push_back(innerStmt);
+            } else {
+                break;
+            }
+        }
+        tryConsume(TokenType::CLOSE_CURLY, "Expected '}'");
+
+        return scope;
     }
 
     NodeStmt *parseStmt() {
@@ -225,6 +258,44 @@ public:
             stmt->stmt = letStmt;
 
             return stmt;
+
+        } else if (tryConsume(TokenType::IF)) {
+
+            tryConsume(TokenType::OPEN_PAREN, "Expected '('");
+
+            NodeExpr *expr = parseExpr();
+            if (!expr) {
+                std::cerr << "Invalid expression\n";
+                exit(1);
+            }
+
+            tryConsume(TokenType::CLOSE_PAREN, "Expected ')'");
+
+            NodeScope *scope = parseScope();
+            if (!scope) {
+                std::cerr << "Invalid scope\n";
+                exit(1);
+            }
+
+            NodeStmtIf *ifStmt = mAllocator.alloc<NodeStmtIf>();
+            ifStmt->expr = expr;
+            ifStmt->scope = scope;
+
+            NodeStmt *stmt = mAllocator.alloc<NodeStmt>();
+            stmt->stmt = ifStmt;
+
+            return stmt;
+
+        } else if (peek() && peek()->type == TokenType::OPEN_CURLY) {
+            NodeScope *scope = parseScope();
+            if (!scope) {
+                std::cerr << "Invalid scope\n";
+                exit(1);
+            }
+            NodeStmt *stmt = mAllocator.alloc<NodeStmt>();
+            stmt->stmt = scope;
+
+            return stmt;
         }
 
         return nullptr;
@@ -263,5 +334,5 @@ private:
         exit(1);
     }
 
-    ArenaAllocator mAllocator;
+    ArenaAllocator mAllocator{FOUR_MEGABYTES};
 };

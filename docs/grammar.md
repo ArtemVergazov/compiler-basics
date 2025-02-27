@@ -5,8 +5,12 @@ $$
     [\text{Stmt}] &\to
     \begin{cases}
         \text{exit}\text{(}[\text{Expr}]\text{)}\text{;} \\
-        \text{let} \space \text{identifier} \space \text{=} \space [\text{Expr}]\text{;}
+        \text{let} \space \text{identifier} \space \text{=} \space [\text{Expr}]\text{;} \\
+        \text{if} \space \text{(}[\text{Expr}]\text{)} \space [\text{Scope}] \\
+        [\text{Scope}]
     \end{cases} \\
+
+    [\text{Scope}] &\to \text{\{} \space [\text{Stmt}]^* \space \text{\}} \\
 
     [\text{Expr}] &\to
     \begin{cases}

@@ -8,19 +8,19 @@
 #include "text_reader.h"
 
 enum class TokenType {
-    EXIT, INT_LITERAL, SEMI, OPEN_PAREN, CLOSE_PAREN,
-    IDENTIFIER, LET, EQ, ADD, SUB, MUL, DIV,
+    EXIT, INT_LITERAL, SEMI, OPEN_PAREN, CLOSE_PAREN, IDENTIFIER, LET, EQ,
+    PLUS, MINUS, STAR, FSLASH, OPEN_CURLY, CLOSE_CURLY, IF,
 };
 
 inline std::optional<int> binPrec(TokenType type) {
     switch (type) {
-        case TokenType::ADD:
+        case TokenType::PLUS:
             return 0;
-        case TokenType::SUB:
+        case TokenType::MINUS:
         return 0;
-        case TokenType::MUL:
+        case TokenType::STAR:
             return 1;
-        case TokenType::DIV:
+        case TokenType::FSLASH:
         return 1;
         default:
             return {};
@@ -52,6 +52,9 @@ public:
                 } else if (buf == "let") {
                     tokens.push_back({ .type = TokenType::LET });
                     buf.clear();
+                } else if (buf == "if") {
+                    tokens.push_back({ .type = TokenType::IF });
+                    buf.clear();
                 } else {
                     tokens.push_back({ .type = TokenType::IDENTIFIER, .value = buf });
                     buf.clear();
@@ -77,16 +80,22 @@ public:
                 tokens.push_back({ .type = TokenType::EQ });
             } else if (*peek() == '+') {
                 consume();
-                tokens.push_back({ .type = TokenType::ADD });
+                tokens.push_back({ .type = TokenType::PLUS });
             } else if (*peek() == '-') {
                 consume();
-                tokens.push_back({ .type = TokenType::SUB });
+                tokens.push_back({ .type = TokenType::MINUS });
             } else if (*peek() == '*') {
                 consume();
-                tokens.push_back({ .type = TokenType::MUL });
+                tokens.push_back({ .type = TokenType::STAR });
             } else if (*peek() == '/') {
                 consume();
-                tokens.push_back({ .type = TokenType::DIV });
+                tokens.push_back({ .type = TokenType::FSLASH });
+            } else if (*peek() == '{') {
+                consume();
+                tokens.push_back({ .type = TokenType::OPEN_CURLY });
+            } else if (*peek() == '}') {
+                consume();
+                tokens.push_back({ .type = TokenType::CLOSE_CURLY });
             } else if (std::isspace(*peek())) {
                 consume();
             } else {

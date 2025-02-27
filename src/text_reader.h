@@ -7,7 +7,7 @@
 template <typename TextStream>
 class TextReader {
 public:
-    explicit TextReader(TextStream &&textStream) : mTextStream(std::move(textStream)), mIndex(0) {}
+    explicit TextReader(TextStream &&textStream) : mTextStream(std::move(textStream)) {}
 
 protected:
     [[nodiscard]] std::optional<typename TextStream::value_type> peek(int offset = 0) const {
@@ -21,5 +21,5 @@ protected:
     TextStream::value_type consume() { return mTextStream[mIndex++]; }
 
     const TextStream mTextStream;
-    size_t mIndex;
+    size_t mIndex{};
 };
