@@ -20,15 +20,15 @@ public:
 
     Generator() = default;
 
-    void genTerm(const NodeTerm *term) {
+    void genTerm(const NodeTerm *const term) {
         std::visit(Visitor{
 
-            [this](const NodeTermIntLiteral *intLiteralTerm) {
+            [this](const NodeTermIntLiteral *const intLiteralTerm) {
                 instruction("mov", "rax", intLiteralTerm->intLiteral.value.value());
                 push("rax");
             },
 
-            [this](const NodeTermIdentifier *identifierTerm) {
+            [this](const NodeTermIdentifier *const identifierTerm) {
                 if (!mVars.contains(identifierTerm->identifier.value.value())) {
                     std::cerr << "Undeclared variable: " << identifierTerm->identifier.value.value() << std::endl;
                     exit(1);
@@ -39,17 +39,17 @@ public:
                 push(offset.str());
             },
 
-            [this](const NodeTermParen *parenTerm) {
+            [this](const NodeTermParen *const parenTerm) {
                 genExpr(parenTerm->expr);
             }
 
         }, term->term);
     }
 
-    void genBinExpr(const NodeBinExpr *binExpr) {
+    void genBinExpr(const NodeBinExpr *const binExpr) {
         std::visit(Visitor{
 
-            [this](const NodeBinExprAdd *binExprAdd){
+            [this](const NodeBinExprAdd *const binExprAdd){
                 genExpr(binExprAdd->lhs);
                 genExpr(binExprAdd->rhs);
                 pop("rbx");
@@ -58,7 +58,7 @@ public:
                 push("rax");
             },
 
-            [this](const NodeBinExprSub *binExprSub){
+            [this](const NodeBinExprSub *const binExprSub){
                 genExpr(binExprSub->lhs);
                 genExpr(binExprSub->rhs);
                 pop("rbx");
@@ -67,7 +67,7 @@ public:
                 push("rax");
             },
 
-            [this](const NodeBinExprMul *binExprMul){
+            [this](const NodeBinExprMul *const binExprMul){
                 genExpr(binExprMul->lhs);
                 genExpr(binExprMul->rhs);
                 pop("rbx");
@@ -76,7 +76,7 @@ public:
                 push("rax");
             },
 
-            [this](const NodeBinExprDiv *binExprDiv){
+            [this](const NodeBinExprDiv *const binExprDiv){
                 genExpr(binExprDiv->lhs);
                 genExpr(binExprDiv->rhs);
                 pop("rbx");
@@ -88,39 +88,39 @@ public:
         }, binExpr->expr);
     }
 
-    void genExpr(const NodeExpr *expr) {
+    void genExpr(const NodeExpr *const expr) {
         std::visit(Visitor{
 
-            [this](const NodeTerm *term) {
+            [this](const NodeTerm *const term) {
                 genTerm(term);
             },
 
-            [this](const NodeBinExpr *binExpr) {
+            [this](const NodeBinExpr *const binExpr) {
                 genBinExpr(binExpr);
             },
 
         }, expr->expr);
     }
 
-    void genScope(const NodeScope *scope) {
+    void genScope(const NodeScope *const scope) {
         beginScope();
-        for (const NodeStmt *stmt : scope->stmts) {
+        for (const NodeStmt *const stmt : scope->stmts) {
             genStmt(stmt);
         }
         endScope();
     }
 
-    void genStmt(const NodeStmt *stmt) {
+    void genStmt(const NodeStmt *const stmt) {
         std::visit(Visitor{
 
-            [this](const NodeStmtExit *exitStmt) {
+            [this](const NodeStmtExit *const exitStmt) {
                 genExpr(exitStmt->expr);
                 instruction("mov", "rax", 60);
                 pop("rdi");
                 syscall();
             },
 
-            [this](const NodeStmtLet *letStmt) {
+            [this](const NodeStmtLet *const letStmt) {
                 if (mVars.contains(letStmt->identifier.value.value())) {
                     std::cerr << "Identifier already used: " << letStmt->identifier.value.value() << std::endl;
                     exit(1);
@@ -130,7 +130,7 @@ public:
                 genExpr(letStmt->expr);
             },
 
-            [this](const NodeStmtIf *ifStmt) {
+            [this](const NodeStmtIf *const ifStmt) {
                 genExpr(ifStmt->expr);
                 pop("rax");
                 instruction("test", "rax", "rax");
@@ -140,18 +140,18 @@ public:
                 mOutput << label << ":\n";
             },
 
-            [this](const NodeScope *scope) {
+            [this](const NodeScope *const scope) {
                 genScope(scope);
             },
 
         }, stmt->stmt);
     }
 
-    [[nodiscard]] std::string genProg(const NodeProg *prog) {
+    [[nodiscard]] std::string genProg(const NodeProg *const prog) {
         mOutput << "global _start\n";
         mOutput << "_start:\n";
 
-        for (const NodeStmt *stmt : prog->stmts) {
+        for (const NodeStmt *const stmt : prog->stmts) {
             genStmt(stmt);
         }
 

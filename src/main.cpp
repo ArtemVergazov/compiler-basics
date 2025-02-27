@@ -17,26 +17,26 @@ constexpr char OUTNAME[]{ "out" };
 
 //===========================================================================
 // Compiler
-void callAssembler(const char *filename) {
+void callAssembler(const char *const filename) {
     const std::string command{ "nasm -felf64 " + std::string(filename) };
     std::system(command.c_str());
 }
 
-void callLinker(const char *filename, const char *outname) {
+void callLinker(const char *const filename, const char *const outname) {
     const std::string command{ "ld -o " + std::string(outname) + " " + std::string(filename) };
     std::system(command.c_str());
 }
 
 //===========================================================================
 // Work with files
-std::string readFile(const char *filename) {
+std::string readFile(const char *const filename) {
     const std::ifstream input{ filename };
     std::stringstream contentsStream{};
     contentsStream << input.rdbuf();
     return contentsStream.str();
 }
 
-void writeFile(const char *filename, const std::string &contents) {
+void writeFile(const char *const filename, const std::string &contents) {
     std::ofstream file{ filename };
     file << contents;
 }

@@ -25,75 +25,79 @@ struct NodeTermIdentifier {
 };
 
 struct NodeTermParen {
-    NodeExpr *expr{};
+    const NodeExpr *expr{};
 };
 
 struct NodeTerm {
-    std::variant<NodeTermIntLiteral *, NodeTermIdentifier *, NodeTermParen *> term{};
+    std::variant<
+        const NodeTermIntLiteral *,
+        const NodeTermIdentifier *,
+        const NodeTermParen *
+    > term{};
 };
 
 struct NodeBinExprAdd {
-    NodeExpr *lhs{};
-    NodeExpr *rhs{};
+    const NodeExpr *lhs{};
+    const NodeExpr *rhs{};
 };
 
 struct NodeBinExprSub {
-    NodeExpr *lhs{};
-    NodeExpr *rhs{};
+    const NodeExpr *lhs{};
+    const NodeExpr *rhs{};
 };
 
 struct NodeBinExprMul {
-    NodeExpr *lhs{};
-    NodeExpr *rhs{};
+    const NodeExpr *lhs{};
+    const NodeExpr *rhs{};
 };
 
 struct NodeBinExprDiv {
-    NodeExpr *lhs{};
-    NodeExpr *rhs{};
+    const NodeExpr *lhs{};
+    const NodeExpr *rhs{};
 };
 
 struct NodeBinExpr {
     std::variant<
-        NodeBinExprAdd *,
-        NodeBinExprSub *,
-        NodeBinExprMul *,
-        NodeBinExprDiv *
+        const NodeBinExprAdd *,
+        const NodeBinExprSub *,
+        const NodeBinExprMul *,
+        const NodeBinExprDiv *
     > expr{};
 };
 
 struct NodeExpr {
-    std::variant<NodeTerm *, NodeBinExpr *> expr{};
+    std::variant<const NodeTerm *, const NodeBinExpr *> expr{};
 };
 
 struct NodeScope {
-    std::vector<NodeStmt *>stmts{};
+    std::vector<const NodeStmt *>stmts{};
 };
 
 struct NodeStmtExit {
-    NodeExpr *expr{};
+    const NodeExpr *expr{};
 };
 
 struct NodeStmtLet {
     Token identifier{};
-    NodeExpr *expr{};
+    const NodeExpr *expr{};
 };
 
 struct NodeStmtIf {
-    NodeExpr *expr{};
-    NodeScope *scope{};
+    const NodeExpr *expr{};
+    const NodeScope *scope{};
 };
 
 struct NodeStmt {
     std::variant<
-        NodeStmtExit *,
-        NodeStmtLet *,
-        NodeStmtIf *,
-        NodeScope *
+        const NodeStmtExit *,
+        const NodeStmtLet *,
+        const NodeStmtIf *,
+        const NodeScope *
     > stmt{};
 };
 
 struct NodeProg {
-    std::vector<NodeStmt *> stmts{};
+    std::vector<const NodeStmt *> stmts{};
 };
 
 class Parser : public TextReader<std::vector<Token>> {
@@ -104,34 +108,34 @@ public:
 
     explicit Parser(std::vector<Token> &&tokens) : TextReader{ std::move(tokens) } {}
 
-    NodeTerm *parseTerm() {
-        if (std::optional<Token> intLiteral{ tryConsume(TokenType::INT_LITERAL) }) {
+    const NodeTerm *parseTerm() {
+        if (const std::optional<Token> intLiteral{ tryConsume(TokenType::INT_LITERAL) }) {
 
-            NodeTermIntLiteral *intLiteralTerm{ mAllocator.emplace<NodeTermIntLiteral>(*intLiteral) };
-            NodeTerm *term{ mAllocator.emplace<NodeTerm>(intLiteralTerm) };
+            const NodeTermIntLiteral *const intLiteralTerm{ mAllocator.emplace<NodeTermIntLiteral>(*intLiteral) };
+            const NodeTerm *const term{ mAllocator.emplace<NodeTerm>(intLiteralTerm) };
 
             return term;
         }
 
-        if (std::optional<Token> indentifier{ tryConsume(TokenType::IDENTIFIER) }) {
+        if (const std::optional<Token> indentifier{ tryConsume(TokenType::IDENTIFIER) }) {
 
-            NodeTermIdentifier *identifierTerm{ mAllocator.emplace<NodeTermIdentifier>(*indentifier) };
-            NodeTerm *term{ mAllocator.emplace<NodeTerm>(identifierTerm) };
+            const NodeTermIdentifier *const identifierTerm{ mAllocator.emplace<NodeTermIdentifier>(*indentifier) };
+            const NodeTerm *const term{ mAllocator.emplace<NodeTerm>(identifierTerm) };
 
             return term;
         }
 
         if (tryConsume(TokenType::OPEN_PAREN)) {
 
-            NodeExpr *expr{ parseExpr() };
+            const NodeExpr *const expr{ parseExpr() };
             if (!expr) {
                 std::cerr << "Expected expression\n";
                 exit(1);
             }
             tryConsume(TokenType::CLOSE_PAREN, "Unmatched '('");
 
-            NodeTermParen *parenTerm{ mAllocator.emplace<NodeTermParen>(expr) };
-            NodeTerm *term{ mAllocator.emplace<NodeTerm>(parenTerm) };
+            const NodeTermParen *const parenTerm{ mAllocator.emplace<NodeTermParen>(expr) };
+            const NodeTerm *const term{ mAllocator.emplace<NodeTerm>(parenTerm) };
 
             return term;
         }
@@ -139,18 +143,18 @@ public:
         return nullptr;
     }
 
-    NodeExpr *parseExpr(int minPrec = 0) {
-        NodeTerm *term{ parseTerm() };
+    const NodeExpr *parseExpr(int minPrec = 0) {
+        const NodeTerm *const term{ parseTerm() };
         if (!term) {
             return nullptr;
         }
 
-        NodeExpr *lhsExpr{ mAllocator.emplace<NodeExpr>(term) };
+        const NodeExpr *lhsExpr{ mAllocator.emplace<NodeExpr>(term) };
 
         while (true) {
             std::optional<int> prec{};
             if (
-                std::optional<Token> curToken{ peek() };
+                const std::optional<Token> curToken{ peek() };
                 !curToken ||
                 !(prec = binPrec(curToken->type)) ||
                 prec < minPrec
@@ -158,22 +162,22 @@ public:
                 break;
             }
 
-            const Token op{ consume() };
+            const TokenType binType { consume().type };
 
-            NodeBinExpr *binExpr{ mAllocator.emplace<NodeBinExpr>() };
-            NodeExpr *rhsExpr{ parseExpr(*prec + 1) };
+            NodeBinExpr *const binExpr{ mAllocator.emplace<NodeBinExpr>() };
+            const NodeExpr *const rhsExpr{ parseExpr(*prec + 1) };
 
-            if (op.type == TokenType::PLUS) {
-                NodeBinExprAdd *addExpr{ mAllocator.emplace<NodeBinExprAdd>(lhsExpr, rhsExpr) };
+            if (binType == TokenType::PLUS) {
+                const NodeBinExprAdd *const addExpr{ mAllocator.emplace<NodeBinExprAdd>(lhsExpr, rhsExpr) };
                 binExpr->expr = addExpr;
-            } else if (op.type == TokenType::STAR) {
-                NodeBinExprMul *mulExpr{ mAllocator.emplace<NodeBinExprMul>(lhsExpr, rhsExpr) };
+            } else if (binType == TokenType::STAR) {
+                const NodeBinExprMul *const mulExpr{ mAllocator.emplace<NodeBinExprMul>(lhsExpr, rhsExpr) };
                 binExpr->expr = mulExpr;
-            } else if (op.type == TokenType::MINUS) {
-                NodeBinExprSub *subExpr{ mAllocator.emplace<NodeBinExprSub>(lhsExpr, rhsExpr) };
+            } else if (binType == TokenType::MINUS) {
+                const NodeBinExprSub *const subExpr{ mAllocator.emplace<NodeBinExprSub>(lhsExpr, rhsExpr) };
                 binExpr->expr = subExpr;
-            } else if (op.type == TokenType::FSLASH) {
-                NodeBinExprDiv *divExpr{ mAllocator.emplace<NodeBinExprDiv>(lhsExpr, rhsExpr) };
+            } else if (binType == TokenType::FSLASH) {
+                const NodeBinExprDiv *const divExpr{ mAllocator.emplace<NodeBinExprDiv>(lhsExpr, rhsExpr) };
                 binExpr->expr = divExpr;
             } else {
                 std::cerr << "Expected a binary operator\n";
@@ -185,13 +189,13 @@ public:
         return lhsExpr;
     }
 
-    NodeScope *parseScope() {
+    const NodeScope *parseScope() {
         if (!tryConsume(TokenType::OPEN_CURLY)) {
             return nullptr;
         }
 
-        NodeScope *scope{ mAllocator.emplace<NodeScope>() };
-        for (NodeStmt *innerStmt{ parseStmt() }; ; innerStmt = parseStmt()) {
+        NodeScope *const scope{ mAllocator.emplace<NodeScope>() };
+        for (const NodeStmt *innerStmt{ parseStmt() }; ; innerStmt = parseStmt()) {
             if (innerStmt) {
                 scope->stmts.push_back(innerStmt);
             } else {
@@ -203,12 +207,12 @@ public:
         return scope;
     }
 
-    NodeStmt *parseStmt() {
+    const NodeStmt *parseStmt() {
         if (
             tryConsume(TokenType::EXIT) &&
             tryConsume(TokenType::OPEN_PAREN)
         ) {
-            NodeExpr *expr{ parseExpr() };
+            const NodeExpr *const expr{ parseExpr() };
             if (!expr) {
                 std::cerr << "Invalid expression\n";
                 exit(1);
@@ -217,8 +221,8 @@ public:
             tryConsume(TokenType::CLOSE_PAREN, "Expected ')'");
             tryConsume(TokenType::SEMI, "Expected ';'");
             
-            NodeStmtExit *exitStmt{ mAllocator.emplace<NodeStmtExit>(expr) };
-            NodeStmt *stmt{ mAllocator.emplace<NodeStmt>(exitStmt) };
+            const NodeStmtExit *const exitStmt{ mAllocator.emplace<NodeStmtExit>(expr) };
+            const NodeStmt *const stmt{ mAllocator.emplace<NodeStmt>(exitStmt) };
 
             return stmt;
         }
@@ -229,15 +233,15 @@ public:
             (identifier = tryConsume(TokenType::IDENTIFIER)) &&
             tryConsume(TokenType::EQ)
         ) {
-            NodeExpr *expr{ parseExpr() };
+            const NodeExpr *const expr{ parseExpr() };
             if (!expr) {
                 std::cerr << "Invalid expression\n";
                 exit(1);
             }
             tryConsume(TokenType::SEMI, "Expected ';'");
 
-            NodeStmtLet *letStmt{ mAllocator.emplace<NodeStmtLet>(*identifier, expr) };
-            NodeStmt *stmt{ mAllocator.emplace<NodeStmt>(letStmt) };
+            const NodeStmtLet *const letStmt{ mAllocator.emplace<NodeStmtLet>(*identifier, expr) };
+            const NodeStmt *const stmt{ mAllocator.emplace<NodeStmt>(letStmt) };
 
             return stmt;
         }
@@ -245,7 +249,7 @@ public:
         if (tryConsume(TokenType::IF)) {
             tryConsume(TokenType::OPEN_PAREN, "Expected '('");
 
-            NodeExpr *expr{ parseExpr() };
+            const NodeExpr *const expr{ parseExpr() };
             if (!expr) {
                 std::cerr << "Invalid expression\n";
                 exit(1);
@@ -253,25 +257,25 @@ public:
 
             tryConsume(TokenType::CLOSE_PAREN, "Expected ')'");
 
-            NodeScope *scope{ parseScope() };
+            const NodeScope *const scope{ parseScope() };
             if (!scope) {
                 std::cerr << "Invalid scope\n";
                 exit(1);
             }
 
-            NodeStmtIf *ifStmt{ mAllocator.emplace<NodeStmtIf>(expr, scope) };
-            NodeStmt *stmt{ mAllocator.emplace<NodeStmt>(ifStmt) };
+            const NodeStmtIf *const ifStmt{ mAllocator.emplace<NodeStmtIf>(expr, scope) };
+            const NodeStmt *const stmt{ mAllocator.emplace<NodeStmt>(ifStmt) };
 
             return stmt;
         }
 
         if (peek() && peek()->type == TokenType::OPEN_CURLY) {
-            NodeScope *scope{ parseScope() };
+            const NodeScope *const scope{ parseScope() };
             if (!scope) {
                 std::cerr << "Invalid scope\n";
                 exit(1);
             }
-            NodeStmt *stmt = mAllocator.emplace<NodeStmt>(scope);
+            const NodeStmt *const stmt = mAllocator.emplace<NodeStmt>(scope);
 
             return stmt;
         }
@@ -279,11 +283,11 @@ public:
         return nullptr;
     }
 
-    NodeProg *parseProg() {
-        NodeProg *prog{ mAllocator.emplace<NodeProg>() };
+    const NodeProg *parseProg() {
+        NodeProg *const prog{ mAllocator.emplace<NodeProg>() };
 
         while (peek()) {
-            NodeStmt *stmt{ parseStmt() };
+            const NodeStmt *const stmt{ parseStmt() };
             if (!stmt) {
                 std::cerr << "Invalid statement\n";
                 exit(1);

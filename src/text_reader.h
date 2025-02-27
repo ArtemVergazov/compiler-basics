@@ -14,7 +14,7 @@ public:
     explicit TextReader(TextStream &&textStream) : mTextStream{ std::move(textStream) } {}
 
 protected:
-    [[nodiscard]] std::optional<typename TextStream::value_type> peek(int offset = 0) const {
+    [[nodiscard]] std::optional<typename TextStream::value_type> peek(const int offset = 0) const {
         if (mIndex + offset >= mTextStream.size()) {
             return {};
         }

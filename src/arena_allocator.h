@@ -11,7 +11,7 @@ public:
     ArenaAllocator(const ArenaAllocator &) = delete;
     ArenaAllocator &operator=(const ArenaAllocator &) = delete;
 
-    explicit ArenaAllocator(size_t bytes) :
+    explicit ArenaAllocator(const size_t bytes) :
         mSize{ bytes },
         mBuffer{ new std::byte[mSize] },
         mOffset{ mBuffer } {}

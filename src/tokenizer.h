@@ -12,7 +12,7 @@ enum class TokenType {
     PLUS, MINUS, STAR, FSLASH, OPEN_CURLY, CLOSE_CURLY, IF,
 };
 
-inline std::optional<int> binPrec(TokenType type) {
+inline std::optional<int> binPrec(const TokenType type) {
     switch (type) {
     case TokenType::PLUS:
         return 0;
