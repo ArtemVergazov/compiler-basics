@@ -11,33 +11,33 @@
 
 //===========================================================================
 // Hardcoded
-constexpr char ASM_PATH[] = "out.asm";
-constexpr char OBJ_PATH[] = "out.o";
-constexpr char OUTNAME[] = "out";
+constexpr char ASM_PATH[]{ "out.asm" };
+constexpr char OBJ_PATH[]{ "out.o" };
+constexpr char OUTNAME[]{ "out" };
 
 //===========================================================================
 // Compiler
-void assemble(const char *filename) {
-    std::string command = "nasm -felf64 " + std::string(filename);
+void callAssembler(const char *filename) {
+    std::string command{ "nasm -felf64 " + std::string(filename) };
     std::system(command.c_str());
 }
 
-void link(const char *filename, const char *outname) {
-    std::string command = "ld -o " + std::string(outname) + " " + std::string(filename);
+void callLinker(const char *filename, const char *outname) {
+    std::string command{ "ld -o " + std::string(outname) + " " + std::string(filename) };
     std::system(command.c_str());
 }
 
 //===========================================================================
 // Work with files
-std::string read_file(const char *filename) {
-    std::ifstream input(filename);
-    std::stringstream contents_stream;
-    contents_stream << input.rdbuf();
-    return contents_stream.str();
+std::string readFile(const char *filename) {
+    std::ifstream input{ filename };
+    std::stringstream contentsStream{};
+    contentsStream << input.rdbuf();
+    return contentsStream.str();
 }
 
-void write_file(const char *filename, const std::string &contents) {
-    std::ofstream file(filename);
+void writeFile(const char *filename, const std::string &contents) {
+    std::ofstream file{ filename };
     file << contents;
 }
 
@@ -48,25 +48,25 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    std::string contents = read_file(argv[1]);
+    std::string contents{ readFile(argv[1]) };
 
-    Tokenizer tokenizer(std::move(contents));
-    std::vector<Token> tokens = tokenizer.tokenize();
+    Tokenizer tokenizer{ std::move(contents) };
+    std::vector<Token> tokens{ tokenizer.tokenize() };
 
-    Parser parser(std::move(tokens));
-    NodeProg prog = parser.parseProg();
+    Parser parser{ std::move(tokens) };
+    NodeProg *prog{ parser.parseProg() }; // parser deallocates the memory
 
     // if (!prog) {
     //     std::cerr << "No exit statement found\n";
     //     exit(1);
     // }
 
-    Generator generator(std::move(prog));
-    std::string asm_code = generator.genProg();
+    Generator generator{};
+    std::string asmCode{ generator.genProg(prog) };
 
-    write_file(ASM_PATH, asm_code);
-    assemble(ASM_PATH);
-    link(OBJ_PATH, OUTNAME);
+    writeFile(ASM_PATH, asmCode);
+    callAssembler(ASM_PATH);
+    callLinker(OBJ_PATH, OUTNAME);
 
     return 0;
 }

@@ -7,7 +7,11 @@
 template <typename TextStream>
 class TextReader {
 public:
-    explicit TextReader(TextStream &&textStream) : mTextStream(std::move(textStream)) {}
+    TextReader() = delete;
+    TextReader(const TextReader &) = delete;
+    TextReader &operator=(const TextReader &) = delete;
+
+    explicit TextReader(TextStream &&textStream) : mTextStream{ std::move(textStream) } {}
 
 protected:
     [[nodiscard]] std::optional<typename TextStream::value_type> peek(int offset = 0) const {

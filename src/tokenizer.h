@@ -14,31 +14,31 @@ enum class TokenType {
 
 inline std::optional<int> binPrec(TokenType type) {
     switch (type) {
-        case TokenType::PLUS:
-            return 0;
-        case TokenType::MINUS:
+    case TokenType::PLUS:
         return 0;
-        case TokenType::STAR:
-            return 1;
-        case TokenType::FSLASH:
+    case TokenType::MINUS:
+        return 0;
+    case TokenType::STAR:
         return 1;
-        default:
-            return {};
-        }
+    case TokenType::FSLASH:
+        return 1;
+    default:
+        return {};
+    }
 }
 
 struct Token {
-    TokenType type;
-    std::optional<std::string> value;
+    TokenType type{};
+    std::optional<std::string> value{};
 };
 
 class Tokenizer : public TextReader<std::string> {
 public:
-    Tokenizer(std::string &&src) : TextReader(std::move(src)) {}
+    Tokenizer(std::string &&src) : TextReader{ std::move(src) } {}
 
     std::vector<Token> tokenize() {
-        std::vector<Token> tokens;
-        std::string buf;
+        std::vector<Token> tokens{};
+        std::string buf{};
 
         while (peek()) {
             if (std::isalpha(*peek())) {

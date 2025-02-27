@@ -11,11 +11,14 @@
 #include "not_implemented_error.h"
 #include "parser.h"
 
-constexpr int EIGHT_BYTES = 8;
+constexpr int EIGHT_BYTES{ 8 };
 
 class Generator {
 public:
-    explicit Generator(NodeProg prog) : mProg(std::move(prog)) {}
+    Generator(const Generator &) = delete;
+    Generator &operator=(const Generator &) = delete;
+
+    Generator() = default;
 
     void genTerm(const NodeTerm *term) {
         std::visit(Visitor{
@@ -30,8 +33,8 @@ public:
                     std::cerr << "Undeclared variable: " << identifierTerm->identifier.value.value() << std::endl;
                     exit(1);
                 }
-                const Var &var = mVars[identifierTerm->identifier.value.value()];
-                std::stringstream offset;
+                const Var &var{ mVars[identifierTerm->identifier.value.value()] };
+                std::stringstream offset{};
                 offset << "QWORD [rsp + " << EIGHT_BYTES*(mStackLoc-var.stackLoc-1) << "]";
                 push(offset.str());
             },
@@ -131,7 +134,7 @@ public:
                 genExpr(ifStmt->expr);
                 pop("rax");
                 instruction("test", "rax", "rax");
-                std::string label = createLabel();
+                std::string label{ createLabel() };
                 instruction("jz", label);
                 genScope(ifStmt->scope);
                 mOutput << label << ":\n";
@@ -144,11 +147,11 @@ public:
         }, stmt->stmt);
     }
 
-    [[nodiscard]] std::string genProg() {
+    [[nodiscard]] std::string genProg(const NodeProg *prog) {
         mOutput << "global _start\n";
         mOutput << "_start:\n";
 
-        for (const NodeStmt *stmt : mProg.stmts) {
+        for (const NodeStmt *stmt : prog->stmts) {
             genStmt(stmt);
         }
 
@@ -168,7 +171,7 @@ private:
     };
 
     struct Var {
-        size_t stackLoc;
+        size_t stackLoc{};
         // TODO Type type;
     };
 
@@ -181,12 +184,12 @@ private:
     }
 
     void endScope() {
-        size_t popCount = mVars.size() - mScopes.top();
+        size_t popCount{ mVars.size() - mScopes.top() };
         instruction("add", "rsp", EIGHT_BYTES * popCount);
         mStackLoc -= popCount;
 
-        for (size_t i = 0; i < popCount; ++i) {
-            std::string name = mVarOrder.top();
+        for (size_t i{ 0 }; i < popCount; ++i) {
+            std::string name{ mVarOrder.top() };
             mVars.erase(name);
             mVarOrder.pop();
         }
@@ -222,7 +225,6 @@ private:
         mOutput << "    " << instruction << " " << arg1 << ", " << arg2 << "\n";
     }
 
-    const NodeProg mProg;
     std::stringstream mOutput{};
     size_t mStackLoc{};
     size_t mLabelCount{};
