@@ -20,7 +20,7 @@ public:
     [[nodiscard]] T *alloc() {
         size_t remainingBytes{ static_cast<size_t>(mBuffer + mSize - mOffset) };
         void *offset{ static_cast<void *>(mOffset) };
-        void *aligned{ std::align(alignof(T), sizeof(T), offset, remainingBytes) };
+        void *const aligned{ std::align(alignof(T), sizeof(T), offset, remainingBytes) };
         if (!aligned) {
             return nullptr;
         }

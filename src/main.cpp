@@ -18,19 +18,19 @@ constexpr char OUTNAME[]{ "out" };
 //===========================================================================
 // Compiler
 void callAssembler(const char *filename) {
-    std::string command{ "nasm -felf64 " + std::string(filename) };
+    const std::string command{ "nasm -felf64 " + std::string(filename) };
     std::system(command.c_str());
 }
 
 void callLinker(const char *filename, const char *outname) {
-    std::string command{ "ld -o " + std::string(outname) + " " + std::string(filename) };
+    const std::string command{ "ld -o " + std::string(outname) + " " + std::string(filename) };
     std::system(command.c_str());
 }
 
 //===========================================================================
 // Work with files
 std::string readFile(const char *filename) {
-    std::ifstream input{ filename };
+    const std::ifstream input{ filename };
     std::stringstream contentsStream{};
     contentsStream << input.rdbuf();
     return contentsStream.str();
@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
     std::vector<Token> tokens{ tokenizer.tokenize() };
 
     Parser parser{ std::move(tokens) };
-    NodeProg *prog{ parser.parseProg() }; // parser deallocates the memory
+    const NodeProg *const prog{ parser.parseProg() }; // parser deallocates the memory
 
     // if (!prog) {
     //     std::cerr << "No exit statement found\n";
@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
     // }
 
     Generator generator{};
-    std::string asmCode{ generator.genProg(prog) };
+    const std::string asmCode{ generator.genProg(prog) };
 
     writeFile(ASM_PATH, asmCode);
     callAssembler(ASM_PATH);

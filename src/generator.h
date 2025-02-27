@@ -134,7 +134,7 @@ public:
                 genExpr(ifStmt->expr);
                 pop("rax");
                 instruction("test", "rax", "rax");
-                std::string label{ createLabel() };
+                const std::string label{ createLabel() };
                 instruction("jz", label);
                 genScope(ifStmt->scope);
                 mOutput << label << ":\n";
@@ -184,13 +184,12 @@ private:
     }
 
     void endScope() {
-        size_t popCount{ mVars.size() - mScopes.top() };
+        const size_t popCount{ mVars.size() - mScopes.top() };
         instruction("add", "rsp", EIGHT_BYTES * popCount);
         mStackLoc -= popCount;
 
         for (size_t i{ 0 }; i < popCount; ++i) {
-            std::string name{ mVarOrder.top() };
-            mVars.erase(name);
+            mVars.erase(mVarOrder.top());
             mVarOrder.pop();
         }
 

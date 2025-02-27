@@ -111,15 +111,17 @@ public:
             NodeTerm *term{ mAllocator.emplace<NodeTerm>(intLiteralTerm) };
 
             return term;
+        }
 
-        } else if (std::optional<Token> indentifier{ tryConsume(TokenType::IDENTIFIER) }) {
+        if (std::optional<Token> indentifier{ tryConsume(TokenType::IDENTIFIER) }) {
 
             NodeTermIdentifier *identifierTerm{ mAllocator.emplace<NodeTermIdentifier>(*indentifier) };
             NodeTerm *term{ mAllocator.emplace<NodeTerm>(identifierTerm) };
 
             return term;
+        }
 
-        } else if (tryConsume(TokenType::OPEN_PAREN)) {
+        if (tryConsume(TokenType::OPEN_PAREN)) {
 
             NodeExpr *expr{ parseExpr() };
             if (!expr) {
@@ -156,7 +158,7 @@ public:
                 break;
             }
 
-            Token op{ consume() };
+            const Token op{ consume() };
 
             NodeBinExpr *binExpr{ mAllocator.emplace<NodeBinExpr>() };
             NodeExpr *rhsExpr{ parseExpr(*prec + 1) };
@@ -219,8 +221,9 @@ public:
             NodeStmt *stmt{ mAllocator.emplace<NodeStmt>(exitStmt) };
 
             return stmt;
+        }
 
-        } else if (
+        if (
             std::optional<Token> identifier{};
             tryConsume(TokenType::LET) &&
             (identifier = tryConsume(TokenType::IDENTIFIER)) &&
@@ -237,8 +240,9 @@ public:
             NodeStmt *stmt{ mAllocator.emplace<NodeStmt>(letStmt) };
 
             return stmt;
+        }
 
-        } else if (tryConsume(TokenType::IF)) {
+        if (tryConsume(TokenType::IF)) {
             tryConsume(TokenType::OPEN_PAREN, "Expected '('");
 
             NodeExpr *expr{ parseExpr() };
@@ -259,8 +263,9 @@ public:
             NodeStmt *stmt{ mAllocator.emplace<NodeStmt>(ifStmt) };
 
             return stmt;
+        }
 
-        } else if (peek() && peek()->type == TokenType::OPEN_CURLY) {
+        if (peek() && peek()->type == TokenType::OPEN_CURLY) {
             NodeScope *scope{ parseScope() };
             if (!scope) {
                 std::cerr << "Invalid scope\n";
