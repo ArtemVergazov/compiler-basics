@@ -185,7 +185,7 @@ private:
         instruction("add", "rsp", EIGHT_BYTES * popCount);
         mStackLoc -= popCount;
 
-        for (int i = 0; i < popCount; ++i) {
+        for (size_t i = 0; i < popCount; ++i) {
             std::string name = mVarOrder.top();
             mVars.erase(name);
             mVarOrder.pop();
