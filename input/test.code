@@ -1,7 +1,4 @@
-let x = 1 - 4;
-if (x) {
-    let y = 1;
-    exit(x);
-}
-let y = 2;
-exit(y);
+let x = 1;
+# # # # # exit(1);
+# comment # some
+exit(14);

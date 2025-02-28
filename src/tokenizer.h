@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cctype> // std::isalpha, std::alnum, std::isspace
 #include <cstdlib> // size_t
 #include <iostream>
 #include <optional>
@@ -41,31 +42,37 @@ public:
         std::string buf{};
 
         while (peek()) {
-            if (std::isalpha(*peek())) {
+
+            if (std::isalpha(*peek())) { // letter symbol
+
                 buf.push_back(consume());
-                while (peek() && std::isalnum(*peek())) {
+                while (peek() && std::isalnum(*peek())) { // identifier or keyword
                     buf.push_back(consume());
                 }
-                if (buf == "exit") {
+
+                if (buf == "exit") { // `exit` keyword
                     tokens.push_back({ .type = TokenType::EXIT });
                     buf.clear();
-                } else if (buf == "let") {
+                } else if (buf == "let") { // `let` keyword
                     tokens.push_back({ .type = TokenType::LET });
                     buf.clear();
-                } else if (buf == "if") {
+                } else if (buf == "if") { // `if` keyword
                     tokens.push_back({ .type = TokenType::IF });
                     buf.clear();
-                } else {
+                } else { // identifier
                     tokens.push_back({ .type = TokenType::IDENTIFIER, .value = buf });
                     buf.clear();
                 }
-            } else if (std::isdigit(*peek())) {
+
+            } else if (std::isdigit(*peek())) { // digit
+
                 buf.push_back(consume());
-                while (peek() && std::isdigit(*peek())) {
+                while (peek() && std::isdigit(*peek())) { // int literal
                     buf.push_back(consume());
                 }
                 tokens.push_back({ .type = TokenType::INT_LITERAL, .value = buf });
                 buf.clear();
+
             } else if (*peek() == '(') {
                 consume();
                 tokens.push_back({ .type = TokenType::OPEN_PAREN });
@@ -96,7 +103,9 @@ public:
             } else if (*peek() == '}') {
                 consume();
                 tokens.push_back({ .type = TokenType::CLOSE_CURLY });
-            } else if (std::isspace(*peek())) {
+            } else if (*peek() == '#') { // comment
+                for (consume(); peek() && *peek() != '\n'; consume()) {} // not new line
+            } else if (std::isspace(*peek())) { // space symbol
                 consume();
             } else {
                 std::cerr << "Syntax error!\n";
