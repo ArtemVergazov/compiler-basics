@@ -110,6 +110,18 @@ public:
         endScope();
     }
 
+    void genBranchIf(const NodeBranchIf *const ifBranch, const std::string &endLabel) {
+        genConditionAndScope(ifBranch->expr, ifBranch->scope, endLabel);
+    }
+
+    void genBranchElif(const NodeBranchElif *const elifBranch, const std::string &endLabel) {
+        genConditionAndScope(elifBranch->expr, elifBranch->scope, endLabel);
+    }
+
+    void genBranchElse(const NodeBranchElse *const elseBranch) {
+        genScope(elseBranch->scope);
+    }
+
     void genStmt(const NodeStmt *const stmt) {
         std::visit(Visitor{
 
@@ -131,13 +143,15 @@ public:
             },
 
             [this](const NodeStmtIf *const ifStmt) {
-                genExpr(ifStmt->expr);
-                pop("rax");
-                instruction("test", "rax", "rax");
-                const std::string label{ createLabel() };
-                instruction("jz", label);
-                genScope(ifStmt->scope);
-                mOutput << label << ":\n";
+                const std::string endLabel{ createLabel() };
+                genBranchIf(ifStmt->ifBranch, endLabel);
+                for (const NodeBranchElif *const elifBranch : ifStmt->elifBranches) {
+                    genBranchElif(elifBranch, endLabel);
+                }
+                if (ifStmt->elseBranch) {
+                    genBranchElse(ifStmt->elseBranch);
+                }
+                insertLabel(endLabel);
             },
 
             [this](const NodeScope *const scope) {
@@ -177,6 +191,33 @@ private:
 
     std::string createLabel() {
         return "label" + std::to_string(mLabelCount++);
+    }
+
+    void insertLabel(const std::string &label) {
+        mOutput << label << ":\n";
+    }
+
+    void genConditionAndScope(
+        const NodeExpr *const condExpr,
+        const NodeScope *const scope,
+        const std::string &endLabel
+    ) {
+        // condition
+        genExpr(condExpr);
+        pop("rax");
+        instruction("test", "rax", "rax");
+
+        // false
+        const std::string falseLabel{ createLabel() };
+        instruction("jz", falseLabel);
+
+        // true
+        genScope(scope);
+
+        // end
+        instruction("jmp", endLabel);
+
+        insertLabel(falseLabel);
     }
 
     void beginScope() {

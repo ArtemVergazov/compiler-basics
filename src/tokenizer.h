@@ -10,7 +10,7 @@
 
 enum class TokenType {
     EXIT, INT_LITERAL, SEMI, OPEN_PAREN, CLOSE_PAREN, IDENTIFIER, LET, EQ,
-    PLUS, MINUS, STAR, FSLASH, OPEN_CURLY, CLOSE_CURLY, IF,
+    PLUS, MINUS, STAR, FSLASH, OPEN_CURLY, CLOSE_CURLY, IF, ELIF, ELSE,
 };
 
 inline std::optional<int> binPrec(const TokenType type) {
@@ -52,17 +52,18 @@ public:
 
                 if (buf == "exit") { // `exit` keyword
                     tokens.push_back({ .type = TokenType::EXIT });
-                    buf.clear();
                 } else if (buf == "let") { // `let` keyword
                     tokens.push_back({ .type = TokenType::LET });
-                    buf.clear();
                 } else if (buf == "if") { // `if` keyword
                     tokens.push_back({ .type = TokenType::IF });
-                    buf.clear();
+                } else if (buf == "elif") { // `elif` keyword
+                    tokens.push_back({ .type = TokenType::ELIF });
+                } else if (buf == "else") { // `else` keyword
+                    tokens.push_back({ .type = TokenType::ELSE });
                 } else { // identifier
                     tokens.push_back({ .type = TokenType::IDENTIFIER, .value = buf });
-                    buf.clear();
                 }
+                buf.clear();
 
             } else if (std::isdigit(*peek())) { // digit
 

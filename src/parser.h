@@ -28,6 +28,7 @@ struct NodeTermParen {
     const NodeExpr *expr{};
 };
 
+// TODO use `using` instead of `struct`
 struct NodeTerm {
     std::variant<
         const NodeTermIntLiteral *,
@@ -56,6 +57,7 @@ struct NodeBinExprDiv {
     const NodeExpr *rhs{};
 };
 
+// TODO use `using` instead of `struct`
 struct NodeBinExpr {
     std::variant<
         const NodeBinExprAdd *,
@@ -65,6 +67,7 @@ struct NodeBinExpr {
     > expr{};
 };
 
+// TODO use `using` instead of `struct`
 struct NodeExpr {
     std::variant<const NodeTerm *, const NodeBinExpr *> expr{};
 };
@@ -82,11 +85,27 @@ struct NodeStmtLet {
     const NodeExpr *expr{};
 };
 
-struct NodeStmtIf {
+struct NodeBranchIf {
     const NodeExpr *expr{};
     const NodeScope *scope{};
 };
 
+struct NodeBranchElif {
+    const NodeExpr *expr{};
+    const NodeScope *scope{};
+};
+
+struct NodeBranchElse {
+    const NodeScope *scope{};
+};
+
+struct NodeStmtIf {
+    const NodeBranchIf *ifBranch{};
+    std::vector<const NodeBranchElif *>elifBranches{};
+    const NodeBranchElse *elseBranch{};
+};
+
+// TODO use `using` instead of `struct`
 struct NodeStmt {
     std::variant<
         const NodeStmtExit *,
@@ -108,31 +127,32 @@ public:
 
     explicit Parser(std::vector<Token> &&tokens) : TextReader{ std::move(tokens) } {}
 
+    void parseError(const std::string &str) {
+        std::cerr << str << std::endl;
+        exit(1);
+    }
+
     const NodeTerm *parseTerm() {
         if (const std::optional<Token> intLiteral{ tryConsume(TokenType::INT_LITERAL) }) {
-
             const NodeTermIntLiteral *const intLiteralTerm{ mAllocator.emplace<NodeTermIntLiteral>(*intLiteral) };
             const NodeTerm *const term{ mAllocator.emplace<NodeTerm>(intLiteralTerm) };
-
             return term;
         }
 
-        if (const std::optional<Token> indentifier{ tryConsume(TokenType::IDENTIFIER) }) {
-
-            const NodeTermIdentifier *const identifierTerm{ mAllocator.emplace<NodeTermIdentifier>(*indentifier) };
+        if (const std::optional<Token> identifier{ tryConsume(TokenType::IDENTIFIER) }) {
+            const NodeTermIdentifier *const identifierTerm{ mAllocator.emplace<NodeTermIdentifier>(*identifier) };
             const NodeTerm *const term{ mAllocator.emplace<NodeTerm>(identifierTerm) };
 
             return term;
         }
 
         if (tryConsume(TokenType::OPEN_PAREN)) {
-
             const NodeExpr *const expr{ parseExpr() };
             if (!expr) {
-                std::cerr << "Expected expression\n";
-                exit(1);
+                parseError("Expected expression");
+            } else {
+                tryConsume(TokenType::CLOSE_PAREN, "Unmatched '('");
             }
-            tryConsume(TokenType::CLOSE_PAREN, "Unmatched '('");
 
             const NodeTermParen *const parenTerm{ mAllocator.emplace<NodeTermParen>(expr) };
             const NodeTerm *const term{ mAllocator.emplace<NodeTerm>(parenTerm) };
@@ -246,7 +266,9 @@ public:
             return stmt;
         }
 
-        if (tryConsume(TokenType::IF)) {
+        if (tryConsume(TokenType::IF)) { // if branch
+            NodeStmtIf *const ifStmt{ mAllocator.emplace<NodeStmtIf>() };
+
             tryConsume(TokenType::OPEN_PAREN, "Expected '('");
 
             const NodeExpr *const expr{ parseExpr() };
@@ -263,7 +285,40 @@ public:
                 exit(1);
             }
 
-            const NodeStmtIf *const ifStmt{ mAllocator.emplace<NodeStmtIf>(expr, scope) };
+            const NodeBranchIf *const ifBranch{ mAllocator.emplace<NodeBranchIf>(expr, scope) };
+            ifStmt->ifBranch = ifBranch;
+
+            while (tryConsume(TokenType::ELIF)) { // elif branches
+                tryConsume(TokenType::OPEN_PAREN, "Expected '('");
+
+                const NodeExpr *const expr{ parseExpr() };
+                if (!expr) {
+                    std::cerr << "Invalid expression\n";
+                    exit(1);
+                }
+    
+                tryConsume(TokenType::CLOSE_PAREN, "Expected ')'");
+    
+                const NodeScope *const scope{ parseScope() };
+                if (!scope) {
+                    std::cerr << "Invalid scope\n";
+                    exit(1);
+                }
+
+                const NodeBranchElif *const elifBranch{ mAllocator.emplace<NodeBranchElif>(expr, scope) };
+                ifStmt->elifBranches.push_back(elifBranch);
+            }
+
+            if (tryConsume(TokenType::ELSE)) { // else branch
+                const NodeScope *const scope{ parseScope() };
+                if (!scope) {
+                    std::cerr << "Invalid scope\n";
+                    exit(1);
+                }
+                const NodeBranchElse *const elseBranch{ mAllocator.emplace<NodeBranchElse>(scope) };
+                ifStmt->elseBranch = elseBranch;
+            }
+
             const NodeStmt *const stmt{ mAllocator.emplace<NodeStmt>(ifStmt) };
 
             return stmt;
