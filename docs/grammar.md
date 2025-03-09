@@ -6,6 +6,7 @@ $$
     \begin{cases}
         \text{exit}([\text{Expr}]); \\
         \text{let} \space \text{identifier} \space = \space [\text{Expr}]; \\
+        \text{identifier} \space = \space [\text{Expr}]; \\
         [\text{IfBranch}] \space [\text{ElifBranch}]^* \space [\text{ElseBranch}]^? \\
         [\text{Scope}]
     \end{cases} \\

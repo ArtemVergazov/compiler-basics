@@ -1,13 +1,13 @@
 #pragma once
 
 #include <cstdlib> // size_t
-#include <iostream>
 #include <optional>
 #include <utility> // std::move
 #include <variant>
 #include <vector>
 
 #include "arena_allocator.h"
+#include "error.h"
 #include "text_reader.h"
 #include "tokenizer.h"
 
@@ -28,7 +28,6 @@ struct NodeTermParen {
     const NodeExpr *expr{};
 };
 
-// TODO use `using` instead of `struct`
 struct NodeTerm {
     std::variant<
         const NodeTermIntLiteral *,
@@ -57,7 +56,6 @@ struct NodeBinExprDiv {
     const NodeExpr *rhs{};
 };
 
-// TODO use `using` instead of `struct`
 struct NodeBinExpr {
     std::variant<
         const NodeBinExprAdd *,
@@ -67,7 +65,6 @@ struct NodeBinExpr {
     > expr{};
 };
 
-// TODO use `using` instead of `struct`
 struct NodeExpr {
     std::variant<const NodeTerm *, const NodeBinExpr *> expr{};
 };
@@ -81,6 +78,11 @@ struct NodeStmtExit {
 };
 
 struct NodeStmtLet {
+    Token identifier{};
+    const NodeExpr *expr{};
+};
+
+struct NodeStmtAssign {
     Token identifier{};
     const NodeExpr *expr{};
 };
@@ -105,11 +107,11 @@ struct NodeStmtIf {
     const NodeBranchElse *elseBranch{};
 };
 
-// TODO use `using` instead of `struct`
 struct NodeStmt {
     std::variant<
         const NodeStmtExit *,
         const NodeStmtLet *,
+        const NodeStmtAssign *,
         const NodeStmtIf *,
         const NodeScope *
     > stmt{};
@@ -126,11 +128,6 @@ public:
     Parser &operator=(const Parser &) = delete;
 
     explicit Parser(std::vector<Token> &&tokens) : TextReader{ std::move(tokens) } {}
-
-    void parseError(const std::string &str) {
-        std::cerr << str << std::endl;
-        exit(1);
-    }
 
     const NodeTerm *parseTerm() {
         if (const std::optional<Token> intLiteral{ tryConsume(TokenType::INT_LITERAL) }) {
@@ -149,7 +146,7 @@ public:
         if (tryConsume(TokenType::OPEN_PAREN)) {
             const NodeExpr *const expr{ parseExpr() };
             if (!expr) {
-                parseError("Expected expression");
+                error("Expected expression");
             } else {
                 tryConsume(TokenType::CLOSE_PAREN, "Unmatched '('");
             }
@@ -200,8 +197,7 @@ public:
                 const NodeBinExprDiv *const divExpr{ mAllocator.emplace<NodeBinExprDiv>(lhsExpr, rhsExpr) };
                 binExpr->expr = divExpr;
             } else {
-                std::cerr << "Expected a binary operator\n";
-                exit(1);
+                error("Expected a binary operator");
             }
             lhsExpr = mAllocator.emplace<NodeExpr>(binExpr);
         }
@@ -234,8 +230,7 @@ public:
         ) {
             const NodeExpr *const expr{ parseExpr() };
             if (!expr) {
-                std::cerr << "Invalid expression\n";
-                exit(1);
+                error("Invalid expression");
             }
             
             tryConsume(TokenType::CLOSE_PAREN, "Expected ')'");
@@ -255,13 +250,26 @@ public:
         ) {
             const NodeExpr *const expr{ parseExpr() };
             if (!expr) {
-                std::cerr << "Invalid expression\n";
-                exit(1);
+                error("Invalid expression");
             }
             tryConsume(TokenType::SEMI, "Expected ';'");
 
             const NodeStmtLet *const letStmt{ mAllocator.emplace<NodeStmtLet>(*identifier, expr) };
             const NodeStmt *const stmt{ mAllocator.emplace<NodeStmt>(letStmt) };
+
+            return stmt;
+        }
+
+        if (std::optional<Token> identifier;
+            (identifier = tryConsume(TokenType::IDENTIFIER)) && tryConsume(TokenType::EQ)
+        ) {
+            const NodeExpr *const expr{ parseExpr() };
+            if (!expr) {
+                error("Invalid expression");
+            }
+            tryConsume(TokenType::SEMI, "Expected ';'");
+            const NodeStmtAssign *const assignStmt{ mAllocator.emplace<NodeStmtAssign>(*identifier, expr) };
+            const NodeStmt *const stmt{ mAllocator.emplace<NodeStmt>(assignStmt) };
 
             return stmt;
         }
@@ -273,16 +281,14 @@ public:
 
             const NodeExpr *const expr{ parseExpr() };
             if (!expr) {
-                std::cerr << "Invalid expression\n";
-                exit(1);
+                error("Invalid expression");
             }
 
             tryConsume(TokenType::CLOSE_PAREN, "Expected ')'");
 
             const NodeScope *const scope{ parseScope() };
             if (!scope) {
-                std::cerr << "Invalid scope\n";
-                exit(1);
+                error("Invalid scope");
             }
 
             const NodeBranchIf *const ifBranch{ mAllocator.emplace<NodeBranchIf>(expr, scope) };
@@ -293,16 +299,14 @@ public:
 
                 const NodeExpr *const expr{ parseExpr() };
                 if (!expr) {
-                    std::cerr << "Invalid expression\n";
-                    exit(1);
+                    error("Invalid expression");
                 }
     
                 tryConsume(TokenType::CLOSE_PAREN, "Expected ')'");
     
                 const NodeScope *const scope{ parseScope() };
                 if (!scope) {
-                    std::cerr << "Invalid scope\n";
-                    exit(1);
+                    error("Invalid scope");
                 }
 
                 const NodeBranchElif *const elifBranch{ mAllocator.emplace<NodeBranchElif>(expr, scope) };
@@ -312,8 +316,7 @@ public:
             if (tryConsume(TokenType::ELSE)) { // else branch
                 const NodeScope *const scope{ parseScope() };
                 if (!scope) {
-                    std::cerr << "Invalid scope\n";
-                    exit(1);
+                    error("Invalid scope");
                 }
                 const NodeBranchElse *const elseBranch{ mAllocator.emplace<NodeBranchElse>(scope) };
                 ifStmt->elseBranch = elseBranch;
@@ -327,8 +330,7 @@ public:
         if (peek() && peek()->type == TokenType::OPEN_CURLY) {
             const NodeScope *const scope{ parseScope() };
             if (!scope) {
-                std::cerr << "Invalid scope\n";
-                exit(1);
+                error("Invalid scope");
             }
             const NodeStmt *const stmt = mAllocator.emplace<NodeStmt>(scope);
 
@@ -344,8 +346,7 @@ public:
         while (peek()) {
             const NodeStmt *const stmt{ parseStmt() };
             if (!stmt) {
-                std::cerr << "Invalid statement\n";
-                exit(1);
+                error("Invalid statement");
             }
             prog->stmts.push_back(stmt);
         }
@@ -367,8 +368,8 @@ private:
         if (peek() && peek()->type == type) {
             return consume();
         }
-        std::cerr << errMsg << std::endl;
-        exit(1);
+        error(errMsg);
+        throw; // unreachable
     }
 
     ArenaAllocator mAllocator{FOUR_MEGABYTES};

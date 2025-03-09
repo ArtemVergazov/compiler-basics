@@ -2,10 +2,11 @@
 
 #include <cctype> // std::isalpha, std::alnum, std::isspace
 #include <cstdlib> // size_t
-#include <iostream>
 #include <optional>
 #include <string>
 #include <vector>
+
+#include "error.h"
 #include "text_reader.h"
 
 enum class TokenType {
@@ -109,8 +110,7 @@ public:
             } else if (std::isspace(*peek())) { // space symbol
                 consume();
             } else {
-                std::cerr << "Syntax error!\n";
-                exit(1);
+                error("Syntax error");
             }
         }
         mIndex = 0;

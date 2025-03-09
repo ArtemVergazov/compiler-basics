@@ -5,9 +5,9 @@
 #include <stack>
 #include <string>
 #include <unordered_map>
-#include <utility> // std::move
 #include <variant> // std::visit
 
+#include "error.h"
 #include "not_implemented_error.h"
 #include "parser.h"
 
@@ -30,13 +30,10 @@ public:
 
             [this](const NodeTermIdentifier *const identifierTerm) {
                 if (!mVars.contains(identifierTerm->identifier.value.value())) {
-                    std::cerr << "Undeclared variable: " << identifierTerm->identifier.value.value() << std::endl;
-                    exit(1);
+                    error("Undeclared variable: " + identifierTerm->identifier.value.value());
                 }
                 const Var &var{ mVars[identifierTerm->identifier.value.value()] };
-                std::stringstream offset{};
-                offset << "QWORD [rsp + " << EIGHT_BYTES*(mStackLoc-var.stackLoc-1) << "]";
-                push(offset.str());
+                push("QWORD [rsp + " + std::to_string(EIGHT_BYTES*(mStackLoc-var.stackLoc-1)) + "]");
             },
 
             [this](const NodeTermParen *const parenTerm) {
@@ -104,6 +101,7 @@ public:
 
     void genScope(const NodeScope *const scope) {
         beginScope();
+        comment("scope");
         for (const NodeStmt *const stmt : scope->stmts) {
             genStmt(stmt);
         }
@@ -111,14 +109,17 @@ public:
     }
 
     void genBranchIf(const NodeBranchIf *const ifBranch, const std::string &endLabel) {
+        comment("if");
         genConditionAndScope(ifBranch->expr, ifBranch->scope, endLabel);
     }
 
     void genBranchElif(const NodeBranchElif *const elifBranch, const std::string &endLabel) {
+        comment("elif");
         genConditionAndScope(elifBranch->expr, elifBranch->scope, endLabel);
     }
 
     void genBranchElse(const NodeBranchElse *const elseBranch) {
+        comment("else");
         genScope(elseBranch->scope);
     }
 
@@ -126,6 +127,7 @@ public:
         std::visit(Visitor{
 
             [this](const NodeStmtExit *const exitStmt) {
+                comment("exit");
                 genExpr(exitStmt->expr);
                 instruction("mov", "rax", 60);
                 pop("rdi");
@@ -134,12 +136,29 @@ public:
 
             [this](const NodeStmtLet *const letStmt) {
                 if (mVars.contains(letStmt->identifier.value.value())) {
-                    std::cerr << "Identifier already used: " << letStmt->identifier.value.value() << std::endl;
-                    exit(1);
+                    error("Identifier already used: " + letStmt->identifier.value.value());
                 }
+                comment("let");
                 mVars[letStmt->identifier.value.value()] = { .stackLoc = mStackLoc };
                 mVarOrder.push(letStmt->identifier.value.value());
                 genExpr(letStmt->expr);
+            },
+
+            [this](const NodeStmtAssign *const assignStmt) {
+                auto it = mVars.find(assignStmt->identifier.value.value());
+                if (it == mVars.cend()) {
+                    error("Undeclared identifier: " + assignStmt->identifier.value.value());
+                }
+
+                comment("assign");
+                genExpr(assignStmt->expr);
+                pop("rax");
+
+                instruction(
+                    "mov",
+                    "QWORD [rsp + " + std::to_string(EIGHT_BYTES*(mStackLoc-it->second.stackLoc-1)) + "]",
+                    "rax"
+                );
             },
 
             [this](const NodeStmtIf *const ifStmt) {
@@ -188,6 +207,10 @@ private:
         size_t stackLoc{};
         // TODO Type type;
     };
+
+    void comment(const std::string &comm) {
+        mOutput << "    ; " << comm << "\n";
+    }
 
     std::string createLabel() {
         return "label" + std::to_string(mLabelCount++);
