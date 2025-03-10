@@ -1,12 +1,10 @@
-let x = 0;
-
-if (1) {
-    x = x + 1;
-} elif(1) {
-    x = x + 2;
-} else {
-    x = x + 3;
+let x = 1;
+if (x) {
+    exit(14);
+} elif (1) {
+    exit(x);
+ else {
+    exit(1);
 }
-
-x = x;
+let y = 1 ;
 exit(x);

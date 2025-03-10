@@ -5,6 +5,7 @@
 #include <utility> // std::move
 #include <vector>
 
+#include "error.h"
 #include "generator.h"
 #include "parser.h"
 #include "tokenizer.h"
@@ -19,12 +20,16 @@ constexpr char OUTNAME[]{ "out" };
 // Compiler
 void callAssembler(const char *const filename) {
     const std::string command{ "nasm -felf64 " + std::string(filename) };
-    std::system(command.c_str());
+    if (std::system(command.c_str()) != 0) {
+        error("Assembler error");
+    }
 }
 
 void callLinker(const char *const filename, const char *const outname) {
     const std::string command{ "ld -o " + std::string(outname) + " " + std::string(filename) };
-    std::system(command.c_str());
+    if (std::system(command.c_str()) != 0) {
+        error("Linker error");
+    }
 }
 
 //===========================================================================
@@ -44,8 +49,7 @@ void writeFile(const char *const filename, const std::string &contents) {
 //===========================================================================
 int main(int argc, char **argv) {
     if (argc != 2) {
-        std::cerr << "Usage: compile <input.code>\n";
-        return 1;
+        error("Usage: compile <input.code>");
     }
 
     std::string contents{ readFile(argv[1]) };
@@ -55,11 +59,6 @@ int main(int argc, char **argv) {
 
     Parser parser{ std::move(tokens) };
     const NodeProg *const prog{ parser.parseProg() }; // parser deallocates the memory
-
-    // if (!prog) {
-    //     std::cerr << "No exit statement found\n";
-    //     exit(1);
-    // }
 
     Generator generator{};
     const std::string asmCode{ generator.genProg(prog) };
